@@ -11,7 +11,7 @@ import SwiftUI
 struct HR_Management_SystemApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            LoginView()
         }
     }
 }
