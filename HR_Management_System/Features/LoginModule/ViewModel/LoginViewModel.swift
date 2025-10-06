@@ -16,17 +16,17 @@ class LoginViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var loginResponse: LoginResponse?
     @Published var errorMessage: String?
-
+    
     private let loginService: LoginServiceProtocol
-
+    
     init(loginService: LoginServiceProtocol = LoginService()) {
         self.loginService = loginService
     }
-
+    
     func login() async {
         isLoading = true
         errorMessage = nil
-
+        
         do {
             let result = try await loginService.login(email: email, password: password)
             self.loginResponse = result
@@ -34,7 +34,14 @@ class LoginViewModel: ObservableObject {
             self.errorMessage = (error as? NetworkError)?.localizedDescription ?? error.localizedDescription
             print(errorMessage)
         }
-
+        
         isLoading = false
+    }
+    
+    func logout() {
+        TokenStore.shared.accessToken = nil
+        loginResponse = nil
+        password = ""
+        email = ""    // optional: clear email too
     }
 }
