@@ -19,6 +19,9 @@ struct EmployeeHomeView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 20) {
+                
+                Spacer()
+                
                 Text("Hello, \(user.displayName ?? user.username)")
                     .font(.title2).bold()
                 
@@ -32,15 +35,16 @@ struct EmployeeHomeView: View {
                     Button("Sign In") { /* call API */ }
                     Button("Sign Out") { /* call API */ }
                 }
+                
+                Spacer()
+                
+                Button("Logout") { vm.logout() }
+                
+                Spacer()
             }
             .padding()
         }
         .navigationTitle("Employee Home")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Logout") { vm.logout() }
-            }
-        }
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
     }

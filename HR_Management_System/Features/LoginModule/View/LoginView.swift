@@ -63,7 +63,7 @@ struct LoginView: View {
                 case .employee(let user):
                     EmployeeHomeView(user: user, vm: vm)
                 case .admin(let user):
-                    AdminHomeView(user: user, vm: vm)
+                    AdminHomeView(vmL: vm)
                 }
             }
         }
