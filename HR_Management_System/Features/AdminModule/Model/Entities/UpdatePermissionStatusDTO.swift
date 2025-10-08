@@ -11,3 +11,8 @@ struct UpdatePermissionStatusDTO: Encodable {
     
     let permissionStatus: Status
 }
+
+struct UpdateLeaveStatusDTO: Encodable {
+    
+    let leaveStatus: Status
+}

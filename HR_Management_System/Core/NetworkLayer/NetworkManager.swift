@@ -46,7 +46,7 @@ final class NetworkManager {
         }
 
         var request = URLRequest(url: url)
-        print("➡️ \(request.httpMethod ?? "GET") \(url.absoluteString)")
+        print("➡️ \(request.httpMethod ?? "") \(request.url?.absoluteString ?? "")")
         request.httpMethod = endpoint.method.rawValue
 
         // Default headers

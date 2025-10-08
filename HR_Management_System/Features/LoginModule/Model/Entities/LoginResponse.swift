@@ -10,5 +10,5 @@ import Foundation
 struct LoginResponse: Decodable, Equatable {
     
     let jwt: String
-    let user: User   // Use your existing User model
+    let user: User
 }

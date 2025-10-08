@@ -17,13 +17,13 @@ final class AdminHomeViewModel: ObservableObject {
     @Published var attendance: [AttendanceRow] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
-
+    
     private let service: AdminServiceProtocol
-
+    
     init(service: AdminServiceProtocol = AdminService()) {
         self.service = service
     }
-
+    
     func loadAll() {
         Task {
             isLoading = true
@@ -38,15 +38,27 @@ final class AdminHomeViewModel: ObservableObject {
             }
         }
     }
-
+    
     func approvePermission(_ row: PermissionRequestRow) {
-        updatePermission(row, to: .approved)
+        Task {
+            do {
+                try await service.updatePermissionStatus(id: row.id, to: .approved)
+                if let i = permissions.firstIndex(where: { $0.id == row.id }) {
+                    let updated = permissions[i]
+                    var req = updated.request
+                    req.status = .approved
+                    permissions[i] = PermissionRequestRow(id: updated.id, request: req, employeeName: updated.employeeName)
+                }
+            } catch {
+                errorMessage = "Could not update permission."
+            }
+        }
     }
-
+    
     func rejectPermission(_ row: PermissionRequestRow) {
         updatePermission(row, to: .rejected)
     }
-
+    
     private func updatePermission(_ row: PermissionRequestRow, to status: Status) {
         Task {
             do {
@@ -57,21 +69,23 @@ final class AdminHomeViewModel: ObservableObject {
                     req.status = status
                     updated = PermissionRequestRow(id: updated.id, request: req, employeeName: updated.employeeName)
                     permissions[i] = updated
+                    print("Updating permission to \(status.rawValue)")
+                    
                 }
             } catch {
                 errorMessage = "Could not update permission."
             }
         }
     }
-
+    
     func approveLeave(_ row: LeaveRequestRow) {
         updateLeave(row, to: .approved)
     }
-
+    
     func rejectLeave(_ row: LeaveRequestRow) {
         updateLeave(row, to: .rejected)
     }
-
+    
     private func updateLeave(_ row: LeaveRequestRow, to status: Status) {
         Task {
             do {

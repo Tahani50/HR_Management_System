@@ -9,25 +9,27 @@ import SwiftUI
 
 struct AdminHomeView: View {
     
+    let user: User
     @StateObject private var vm = AdminHomeViewModel()
     @ObservedObject var vmL: LoginViewModel
     
     var body: some View {
         ZStack {
             Color.red.opacity(0.12).ignoresSafeArea()
-
+            
             VStack(spacing: 12) {
-                Text("Hello, \(vm.adminName)")
+             
+                Text("Hello, \(user.displayName ?? user.username)")
                     .font(.largeTitle).bold()
                     .padding(.top, 8)
-
+                
                 if vm.isLoading { ProgressView("Loading...").padding() }
                 if let err = vm.errorMessage {
                     Text(err).foregroundColor(.red).padding(.horizontal)
                 }
-
+                
                 List {
-                    Section("Permissions (Pending)") {
+                    Section("Permissions List") {
                         if vm.permissions.isEmpty {
                             Text("No pending permissions").foregroundColor(.secondary)
                         } else {
@@ -41,7 +43,7 @@ struct AdminHomeView: View {
                                     Text("Reason: \(row.request.reason)")
                                     Text("Hours: \(row.request.hours) • Date: \(format(date: row.request.date))")
                                         .font(.caption).foregroundColor(.secondary)
-
+                                    
                                     HStack {
                                         Button("Approve") { vm.approvePermission(row) }
                                             .buttonStyle(.borderedProminent)
@@ -54,8 +56,8 @@ struct AdminHomeView: View {
                             }
                         }
                     }
-
-                    Section("Leaves (Pending)") {
+                    
+                    Section("Leaves List") {
                         if vm.leaves.isEmpty {
                             Text("No pending leaves").foregroundColor(.secondary)
                         } else {
@@ -69,8 +71,8 @@ struct AdminHomeView: View {
                                     Text("Type: \(row.request.type.rawValue.capitalized)")
                                     Text("From: \(format(date: row.request.dateFrom))"
                                          + (row.request.dateTo != nil ? "  To: \(format(date: row.request.dateTo!))" : ""))
-                                        .font(.caption).foregroundColor(.secondary)
-
+                                    .font(.caption).foregroundColor(.secondary)
+                                    
                                     HStack {
                                         Button("Approve") { vm.approveLeave(row) }
                                             .buttonStyle(.borderedProminent)
@@ -83,8 +85,8 @@ struct AdminHomeView: View {
                             }
                         }
                     }
-
-                    Section("Attendance (All)") {
+                    
+                    Section("Attendance List") {
                         if vm.attendance.isEmpty {
                             Text("No attendance records").foregroundColor(.secondary)
                         } else {
@@ -113,14 +115,16 @@ struct AdminHomeView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .onAppear { vm.loadAll() }
+        .onAppear {
+            vm.loadAll()
+        }
         .navigationTitle("Admin Home")
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
     }
-
+    
     // MARK: - Small helpers
-
+    
     private func statusBadge(_ status: Status) -> some View {
         let color: Color = {
             switch status {
@@ -137,13 +141,13 @@ struct AdminHomeView: View {
             .foregroundColor(color)
             .clipShape(Capsule())
     }
-
+    
     private func format(date: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         return f.string(from: date)
     }
-
+    
     private func format(dateTime: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm"

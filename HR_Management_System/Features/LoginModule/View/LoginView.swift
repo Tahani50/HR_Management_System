@@ -8,9 +8,9 @@
 import SwiftUI
 
 struct LoginView: View {
+    
     @StateObject private var vm = LoginViewModel()
     
-    // Simple route enum that carries the logged-in user
     enum Route: Hashable {
         case employee(User)
         case admin(User)
@@ -63,7 +63,7 @@ struct LoginView: View {
                 case .employee(let user):
                     EmployeeHomeView(user: user, vm: vm)
                 case .admin(let user):
-                    AdminHomeView(vmL: vm)
+                    AdminHomeView(user: user, vmL: vm)
                 }
             }
         }

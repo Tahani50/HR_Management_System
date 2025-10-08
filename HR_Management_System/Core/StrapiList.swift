@@ -48,7 +48,24 @@ struct PermissionFlat: Decodable, Identifiable {
     let hours: Int
     let date: Date
     let permissionStatus: Status
+    let users_permissions_user: UserSlim?   // 👈 populated user (object)
+}
 
-    // If your payload later includes employeeId, add it here:
-    // let employeeId: Int?
+enum UserRelation: Decodable {
+    case one(UserSlim), many([UserSlim]), none
+    init(from decoder: Decoder) throws {
+        let c = try decoder.singleValueContainer()
+        if c.decodeNil() { self = .none; return }
+        if let one = try? c.decode(UserSlim.self) { self = .one(one); return }
+        if let many = try? c.decode([UserSlim].self) { self = .many(many); return }
+        self = .none
+    }
+    var first: UserSlim? { switch self { case .one(let u): u; case .many(let a): a.first; case .none: nil } }
+}
+
+struct UserSlim: Decodable, Identifiable {
+    let id: Int
+    let username: String?
+    let displayName: String?
+    let email: String?
 }

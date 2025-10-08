@@ -9,74 +9,92 @@ import Foundation
 
 final class AdminService: AdminServiceProtocol {
     func fetchPendingPermissions() async throws -> [PermissionRequestRow] {
-            // Decode the flat response
-            let list: StrapiFlatList<PermissionFlat> =
-                try await NetworkManager.shared.request(endpoint: .pendingPermissions())
-
-            // Map to your existing UI rows, then filter pending
-            let rows: [PermissionRequestRow] = list.data.map { flat in
-                // Use 0 if employeeId is not present in the payload yet
-                let empId = 0
-
-                let model = PermissionRequest(
-                    id: flat.id,
-                    reason: flat.reason,
-                    hours: flat.hours,
-                    date: flat.date,
-                    status: flat.permissionStatus,   // <-- key change
-                    employeeId: empId
-                )
-
-                // Show a simple placeholder name for now
-                return PermissionRequestRow(
-                    id: flat.id,
-                    request: model,
-                    employeeName: "Employee"
-                )
-            }
-
-            return rows.filter { $0.request.status == .pending }
+        let list: StrapiFlatList<PermissionFlat> =
+        try await NetworkManager.shared.request(endpoint: .pendingPermissions())
+        
+        let rows: [PermissionRequestRow] = list.data.map { flat in
+            let user = flat.users_permissions_user
+            let empId = user?.id ?? 0
+            let name  = user?.displayName ?? user?.username ?? (empId > 0 ? "Employee #\(empId)" : "Employee")
+            
+            let model = PermissionRequest(
+                id: flat.id,
+                reason: flat.reason,
+                hours: flat.hours,
+                date: flat.date,
+                status: flat.permissionStatus,
+                employeeId: empId
+            )
+            return PermissionRequestRow(id: flat.id, request: model, employeeName: name)
         }
-
-
-
-    func fetchPendingLeaves() async throws -> [LeaveRequestRow] {
-        let list: StrapiList<LeaveAttributes> =
-            try await NetworkManager.shared.request(endpoint: .pendingLeaves())
-        let rows = list.data.map { mapLeave($0) }
+        
         return rows.filter { $0.request.status == .pending }
     }
-
-    func fetchAllAttendance() async throws -> [AttendanceRow] {
-        // GET /api/attendances?populate=employee&sort=timestamp:desc
-        let list: StrapiList<AttendanceAttributes> = try await NetworkManager.shared.request(
-            endpoint: .allAttendance(
-                query: [
-                    URLQueryItem(name: "sort", value: "timestamp:desc")
-                ]
-            )
-        )
-        return list.data.map { mapAttendance($0) }
-    }
-
+    
     func updatePermissionStatus(id: Int, to status: Status) async throws {
+        // PUT /api/permission-requests/:id with { "data": { "permissionStatus": "approved" } }
         let body = UpdatePermissionStatusDTO(permissionStatus: status)
-        // Reuses your NetworkManager’s {data: ...} wrapper automatically
-        let _: StrapiSingle<PermissionAttributes> = try await NetworkManager.shared.request(
+        struct EmptyOK: Decodable {}
+        _ = try await NetworkManager.shared.request(
             endpoint: .updatePermissionStatus(id: id),
             body: body
-        )
+        ) as EmptyOK
     }
+    
+    
+    func fetchPendingLeaves() async throws -> [LeaveRequestRow] {
+        let list: StrapiFlatList<LeaveFlat> =
+        try await NetworkManager.shared.request(endpoint: .pendingLeaves())
+        
+        let rows: [LeaveRequestRow] = list.data.map { flat in
+            let empId = flat.users_permissions_user?.id ?? 0
+            let name  = flat.users_permissions_user?.displayName
+            ?? flat.users_permissions_user?.username
+            ?? (empId > 0 ? "Employee #\(empId)" : "Employee")
+            
+            let model = LeaveRequest(
+                id: flat.id,
+                type: flat.type,
+                dateFrom: flat.dateFrom,
+                dateTo: flat.dateTo,
+                status: flat.leaveStatus,   // <- matches your raw JSON
+                employeeId: empId
+            )
+            return LeaveRequestRow(id: flat.id, request: model, employeeName: name)
+        }
+        
+        return rows.filter { $0.request.status == .pending }
+    }
+    
+    func fetchAllAttendance() async throws -> [AttendanceRow] {
+            let list: StrapiFlatList<AttendanceFlat> =
+                try await NetworkManager.shared.request(endpoint: .allAttendance())
 
+            return list.data.map { flat in
+                let empId = flat.users_permissions_user?.id ?? 0
+                let name  = flat.users_permissions_user?.displayName
+                        ?? flat.users_permissions_user?.username
+                        ?? (empId > 0 ? "Employee #\(empId)" : "Employee")
+
+                let model = Attendance(
+                    id: flat.id,
+                    timestamp: flat.timestamp,
+                    action: flat.action,
+                    employeeId: empId
+                )
+                return AttendanceRow(id: flat.id, attendance: model, employeeName: name)
+            }
+        }
+    
     func updateLeaveStatus(id: Int, to status: Status) async throws {
         let _: StrapiSingle<LeaveAttributes> = try await NetworkManager.shared.request(
             endpoint: .updateLeaveStatus(id: id),
             body: UpdateStatusDTO(status: status)
         )
     }
-
+    
     // MARK: - Mappers
-
+    
     private func mapPermission(_ e: StrapiEntity<PermissionAttributes>) -> PermissionRequestRow {
         let empId = e.attributes.employeeId
         let model = PermissionRequest(
@@ -89,7 +107,7 @@ final class AdminService: AdminServiceProtocol {
         )
         return .init(id: e.id, request: model, employeeName: "Employee #\(empId)")
     }
-
+    
     private func mapLeave(_ e: StrapiEntity<LeaveAttributes>) -> LeaveRequestRow {
         let empId = e.attributes.employeeId
         let model = LeaveRequest(
@@ -102,7 +120,7 @@ final class AdminService: AdminServiceProtocol {
         )
         return .init(id: e.id, request: model, employeeName: "Employee #\(empId)")
     }
-
+    
     private func mapAttendance(_ e: StrapiEntity<AttendanceAttributes>) -> AttendanceRow {
         let empId = e.attributes.employeeId
         let model = Attendance(

@@ -17,38 +17,36 @@ enum APIEndpoint {
     case createLeave
     case createAttendance
     case pendingPermissions(query: [URLQueryItem] = [])
-    case pendingLeaves(query: [URLQueryItem] = [])
     case updatePermissionStatus(id: Int)
+    case pendingLeaves(query: [URLQueryItem] = [])
     case updateLeaveStatus(id: Int)
-    case allAttendance(query: [URLQueryItem] = [])        // ✅ Added for Admin view
-
-    // MARK: base
+    case allAttendance(query: [URLQueryItem] = [])
     static let base = URL(string: "http://localhost:1337")!
-
+    
     var method: HTTPMethod {
         switch self {
         case .login: return .post
         case .myPermissionRequests, .myLeaveRequests, .myAttendance,
-             .pendingPermissions, .pendingLeaves, .allAttendance: return .get
+                .pendingPermissions, .pendingLeaves, .allAttendance: return .get
         case .createPermission, .createLeave, .createAttendance: return .post
         case .updatePermissionStatus, .updateLeaveStatus: return .put
         }
     }
-
-    // Whether the body must be wrapped as { "data": ... } (Strapi v4)
+    
     var requiresStrapiDataWrapper: Bool {
         switch self {
         case .login: return false
+        case .pendingPermissions, .pendingLeaves, .allAttendance: return false
         default:     return true
         }
     }
-
-    // Compose URL (⚠️ paths below DO NOT start with "/")
+    
     var url: String {
         switch self {
+            
         case .login:
             return APIEndpoint.base.appendingPathComponent("api/auth/local").absoluteString
-
+            
         case let .myPermissionRequests(userId, query):
             return APIEndpoint.url(
                 "api/permission-requests",
@@ -59,7 +57,7 @@ enum APIEndpoint {
                 ],
                 extra: query
             )
-
+            
         case let .myLeaveRequests(userId, query):
             return APIEndpoint.url(
                 "api/leave-requests",
@@ -70,7 +68,7 @@ enum APIEndpoint {
                 ],
                 extra: query
             )
-
+            
         case let .myAttendance(userId, query):
             return APIEndpoint.url(
                 "api/attendances",
@@ -81,61 +79,66 @@ enum APIEndpoint {
                 ],
                 extra: query
             )
-
-        
-
-
+            
         case .createPermission:
             return APIEndpoint.base.appendingPathComponent("api/permission-requests").absoluteString
+            
         case .createLeave:
             return APIEndpoint.base.appendingPathComponent("api/leave-requests").absoluteString
+            
         case .createAttendance:
             return APIEndpoint.base.appendingPathComponent("api/attendances").absoluteString
-
+            
         case let .pendingPermissions(query):
             return APIEndpoint.url(
                 "api/permission-requests",
                 baseQuery: [
+                    URLQueryItem(name: "populate", value: "users_permissions_user"), // ✅ keep this
                     URLQueryItem(name: "sort", value: "date:desc"),
                     URLQueryItem(name: "pagination[pageSize]", value: "100")
                 ],
                 extra: query
             )
-
+            
         case let .pendingLeaves(query):
             return APIEndpoint.url(
                 "api/leave-requests",
                 baseQuery: [
+                    // optional populate if you have the same relation on Leave
+                    URLQueryItem(name: "populate", value: "users_permissions_user"),
                     URLQueryItem(name: "sort", value: "dateFrom:desc"),
                     URLQueryItem(name: "pagination[pageSize]", value: "100")
                 ],
                 extra: query
             )
-
+            
         case let .updatePermissionStatus(id):
-            return APIEndpoint.base.appendingPathComponent("api/permission-requests/\(id)").absoluteString
-
+            return APIEndpoint.base
+                .appendingPathComponent("api/permission-requests")
+                .appendingPathComponent("\(id)")
+                .absoluteString
+            
         case let .updateLeaveStatus(id):
             return APIEndpoint.base.appendingPathComponent("api/leave-requests/\(id)").absoluteString
-
+            
         case let .allAttendance(query):
             return APIEndpoint.url(
                 "api/attendances",
                 baseQuery: [
+                    URLQueryItem(name: "populate", value: "users_permissions_user"), // ⬅️ get the user name
                     URLQueryItem(name: "sort", value: "timestamp:desc"),
                     URLQueryItem(name: "pagination[pageSize]", value: "100")
                 ],
-                extra: query
+                extra: query   // keep this empty to avoid duplicate sort in logs
             )
+            
         }
     }
-
+    
     // Helper to build URLs with query items (expects path with NO leading “/”)
     private static func url(_ path: String, baseQuery: [URLQueryItem], extra: [URLQueryItem]) -> String {
         var comps = URLComponents(url: APIEndpoint.base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
-        // ✅ drop any populate=employee if it sneaks in
-        let safeExtra = extra.filter { !($0.name == "populate" && $0.value == "employee") }
-        comps.queryItems = baseQuery + safeExtra
+        comps.queryItems = baseQuery + extra
         return comps.string!
     }
 }
