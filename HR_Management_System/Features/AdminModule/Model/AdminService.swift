@@ -17,7 +17,7 @@ final class AdminService: AdminServiceProtocol {
             let empId = user?.id ?? 0
             let name  = user?.displayName ?? user?.username ?? (empId > 0 ? "Employee #\(empId)" : "Employee")
             
-            let model = PermissionRequest(
+            let model = PermissionRequest2(
                 id: flat.id,
                 reason: flat.reason,
                 hours: flat.hours,
@@ -97,7 +97,7 @@ final class AdminService: AdminServiceProtocol {
     
     private func mapPermission(_ e: StrapiEntity<PermissionAttributes>) -> PermissionRequestRow {
         let empId = e.attributes.employeeId
-        let model = PermissionRequest(
+        let model = PermissionRequest2(
             id: e.id,
             reason: e.attributes.reason,
             hours: e.attributes.hours,

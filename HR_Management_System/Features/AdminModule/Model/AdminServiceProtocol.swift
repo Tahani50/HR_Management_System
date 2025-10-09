@@ -18,7 +18,7 @@ protocol AdminServiceProtocol {
 // Row models for easy rendering (include employeeName for UI)
 struct PermissionRequestRow: Identifiable, Equatable {
     let id: Int
-    let request: PermissionRequest
+    let request: PermissionRequest2
     let employeeName: String
 }
 

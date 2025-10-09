@@ -7,8 +7,8 @@
 
 import Foundation
 
-struct PermissionRequest: Identifiable, Codable, Equatable {
-    
+struct PermissionRequest2: Identifiable, Codable, Equatable {
+
     let id: Int
     var reason: String
     var hours: Int
