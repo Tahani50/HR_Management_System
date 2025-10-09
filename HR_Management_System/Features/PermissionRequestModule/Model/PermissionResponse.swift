@@ -8,13 +8,11 @@
 
 import Foundation
 
-// MARK: - رد السيرفر عند استعلام إذن
 struct PermissionResponse: Codable {
     let data: PermissionDataResponse
     let meta: MetaResponse?
 }
 
-// MARK: - بيانات الإذن في الرد
 struct PermissionDataResponse: Codable {
     let id: Int
     let documentId: String
@@ -27,12 +25,11 @@ struct PermissionDataResponse: Codable {
     let publishedAt: String
 }
 
-// MARK: - ميتا (فارغة حالياً)
 struct MetaResponse: Codable {}
 
-// MARK: - نموذج إرسال الطلب لإنشاء إذن
 struct PermissionRequest: Encodable {
     let reason: String
     let hours: Int
-    let date: String // التنسيق: "yyyy-MM-dd"
+    let date: String
+
 }

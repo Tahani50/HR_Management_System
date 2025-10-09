@@ -15,8 +15,8 @@ enum Theme: String, Codable, CaseIterable {
 extension Theme {
     var backgroundColor: Color {
         switch self {
-        case .lightBlue: return Color(red: 0.90, green: 0.96, blue: 1.0) // soft light blue
-        case .red:       return Color(red: 1.00, green: 0.93, blue: 0.93) // soft red
+        case .lightBlue: return Color(red: 0.90, green: 0.96, blue: 1.0)
+        case .red:       return Color(red: 1.00, green: 0.93, blue: 0.93)
         }
     }
     var accentColor: Color { self == .lightBlue ? .blue : .red }

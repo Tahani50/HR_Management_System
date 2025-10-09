@@ -10,8 +10,16 @@ import Foundation
 struct User: Identifiable, Codable, Equatable, Hashable {
     
     let id: Int
+    let documentId: String
     let username: String
-    var displayName: String?
-    var userType: UserType
-    var theme: Theme
+    let email: String
+    let provider: String
+    let confirmed: Bool
+    let blocked: Bool
+    let createdAt: Date
+    let updatedAt: Date
+    let publishedAt: Date
+    let userType: UserType
+    let theme: Theme
+    let displayName: String?
 }

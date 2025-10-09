@@ -18,7 +18,7 @@ struct AdminHomeView: View {
             Color.red.opacity(0.12).ignoresSafeArea()
             
             VStack(spacing: 12) {
-             
+                
                 Text("Hello, \(user.displayName ?? user.username)")
                     .font(.largeTitle).bold()
                     .padding(.top, 8)
@@ -30,25 +30,38 @@ struct AdminHomeView: View {
                 
                 List {
                     Section("Permissions List") {
+                        
                         if vm.permissions.isEmpty {
-                            Text("No pending permissions").foregroundColor(.secondary)
+                            
+                            Text("No permissions")
+                                .foregroundColor(.secondary)
+                            
                         } else {
                             ForEach(vm.permissions) { row in
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack {
-                                        Text(row.employeeName).bold()
+                                        Text(row.user?.displayName ?? row.user?.username ?? "Employee").bold()
                                         Spacer()
-                                        statusBadge(row.request.status)
+                                        statusBadge(row.permissionStatus)
                                     }
-                                    Text("Reason: \(row.request.reason)")
-                                    Text("Hours: \(row.request.hours) • Date: \(format(date: row.request.date))")
+                                    Text("Reason: \(row.reason)")
+                                    Text("Hours: \(row.hours) • Date: \(format(date: row.date))")
+                                        .bold()
                                         .font(.caption).foregroundColor(.secondary)
                                     
                                     HStack {
-                                        Button("Approve") { vm.approvePermission(row) }
-                                            .buttonStyle(.borderedProminent)
-                                        Button("Reject") { vm.rejectPermission(row) }
-                                            .buttonStyle(.bordered)
+                                        Button("Approve") {
+                                            Task {
+                                                await vm.updatePermissionStatus(row, status: .approved)
+                                            }
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        Button("Reject") {
+                                            Task {
+                                                await vm.updatePermissionStatus(row, status: .rejected)
+                                            }
+                                        }
+                                        .buttonStyle(.bordered)
                                     }
                                     .padding(.top, 4)
                                 }
@@ -58,26 +71,40 @@ struct AdminHomeView: View {
                     }
                     
                     Section("Leaves List") {
+                        
                         if vm.leaves.isEmpty {
-                            Text("No pending leaves").foregroundColor(.secondary)
+                            
+                            Text("No leaves")
+                                .foregroundColor(.secondary)
+                            
                         } else {
                             ForEach(vm.leaves) { row in
                                 VStack(alignment: .leading, spacing: 6) {
                                     HStack {
-                                        Text(row.employeeName).bold()
+                                        Text(row.user?.displayName ?? row.user?.username ?? "Employee").bold()
                                         Spacer()
-                                        statusBadge(row.request.status)
+                                        statusBadge(row.leaveStatus)
                                     }
-                                    Text("Type: \(row.request.type.rawValue.capitalized)")
-                                    Text("From: \(format(date: row.request.dateFrom))"
-                                         + (row.request.dateTo != nil ? "  To: \(format(date: row.request.dateTo!))" : ""))
-                                    .font(.caption).foregroundColor(.secondary)
+                                    Text("Type: \(row.type.rawValue.capitalized)")
+                                    Text("From: \(format(dateString: row.dateFrom))"
+                                         + "  To: \(format(dateString: row.dateTo))")
+                                    .bold()
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                                     
                                     HStack {
-                                        Button("Approve") { vm.approveLeave(row) }
-                                            .buttonStyle(.borderedProminent)
-                                        Button("Reject") { vm.rejectLeave(row) }
-                                            .buttonStyle(.bordered)
+                                        Button("Approve") {
+                                            Task {
+                                                await vm.updateLeaveStatus(row, status: .approved)
+                                            }
+                                        }
+                                        .buttonStyle(.borderedProminent)
+                                        Button("Reject") {
+                                            Task {
+                                                await vm.updateLeaveStatus(row, status: .rejected)
+                                            }
+                                        }
+                                        .buttonStyle(.bordered)
                                     }
                                     .padding(.top, 4)
                                 }
@@ -88,22 +115,40 @@ struct AdminHomeView: View {
                     
                     Section("Attendance List") {
                         if vm.attendance.isEmpty {
-                            Text("No attendance records").foregroundColor(.secondary)
+                            Text("No attendance records")
+                                .foregroundColor(.secondary)
                         } else {
-                            ForEach(vm.attendance) { row in
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(row.employeeName).bold()
-                                        Text(format(dateTime: row.attendance.timestamp))
-                                            .font(.caption).foregroundColor(.secondary)
+                            let records = vm.attendance.sorted { $0.timestamp < $1.timestamp }
+
+                            if let first = records.first, let user = first.user {
+                                VStack(alignment: .leading, spacing: 12) {
+
+                                    HStack(spacing: 4) {
+                                        Text(user.displayName ?? "Employee")
+                                            .font(.headline)
+                                        
+                                        Spacer()
+                                        
+                                        Text(first.timestamp, style: .date)
+                                            .font(.subheadline)
+                                            .foregroundColor(.secondary)
                                     }
-                                    Spacer()
-                                    Text(row.attendance.action.rawValue)
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(.ultraThinMaterial)
-                                        .clipShape(Capsule())
+
+                                    HStack {
+                                        ForEach(records.indices, id: \.self) { index in
+                                            HStack(alignment: .firstTextBaseline) {
+                                                Text(records[index].actionText + ":")
+                                                    .bold()
+                                                Text(records[index].timestamp.formatted(date: .omitted, time: .shortened))
+                                            }
+                                            
+                                            if index != records.count - 1 {
+                                                Spacer()
+                                            }
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .font(.body)
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -115,10 +160,9 @@ struct AdminHomeView: View {
                 .scrollContentBackground(.hidden)
             }
         }
-        .onAppear {
-            vm.loadAll()
+        .task {
+            await vm.loadAll()
         }
-        .navigationTitle("Admin Home")
         .navigationBarHidden(true)
         .navigationBarBackButtonHidden(true)
     }
@@ -141,16 +185,28 @@ struct AdminHomeView: View {
             .foregroundColor(color)
             .clipShape(Capsule())
     }
-    
     private func format(date: Date) -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
         return f.string(from: date)
     }
     
-    private func format(dateTime: Date) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd HH:mm"
-        return f.string(from: dateTime)
+    private func format(dateString: String) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        if let date = formatter.date(from: dateString) {
+            return formatter.string(from: date)
+        }
+        return dateString
+    }
+}
+
+extension Attendance {
+    var actionText: String {
+        switch action {
+        case .sign_in:  return "Sign in"
+        case .sign_out: return "Sign out"
+        }
     }
 }
