@@ -8,28 +8,10 @@
 import Foundation
 
 protocol AdminServiceProtocol {
-    func fetchPendingPermissions() async throws -> [PermissionRequestRow]
-    func fetchPendingLeaves() async throws -> [LeaveRequestRow]
-    func fetchAllAttendance() async throws -> [AttendanceRow]
-    func updatePermissionStatus(id: Int, to status: Status) async throws
-    func updateLeaveStatus(id: Int, to status: Status) async throws
-}
-
-// Row models for easy rendering (include employeeName for UI)
-struct PermissionRequestRow: Identifiable, Equatable {
-    let id: Int
-    let request: PermissionRequest
-    let employeeName: String
-}
-
-struct LeaveRequestRow: Identifiable, Equatable {
-    let id: Int
-    let request: LeaveRequest
-    let employeeName: String
-}
-
-struct AttendanceRow: Identifiable, Equatable {
-    let id: Int
-    let attendance: Attendance
-    let employeeName: String
+    
+    func fetchPermissions() async throws -> [Permission]
+    func fetchLeaves() async throws -> [Leave]
+    func fetchAttendance() async throws -> [Attendance]
+    func updatePermissionStatus(documentId: String, status: Status) async throws -> Permission
+    func updateLeaveStatus(documentId: String, status: Status) async throws -> Leave
 }

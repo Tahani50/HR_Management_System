@@ -11,10 +11,9 @@ import Combine
 @MainActor
 final class AdminHomeViewModel: ObservableObject {
     
-    @Published var adminName: String = "Admin"
-    @Published var permissions: [PermissionRequestRow] = []
-    @Published var leaves: [LeaveRequestRow] = []
-    @Published var attendance: [AttendanceRow] = []
+    @Published var permissions: [Permission] = []
+    @Published var leaves: [Leave] = []
+    @Published var attendance: [Attendance] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     
@@ -24,82 +23,65 @@ final class AdminHomeViewModel: ObservableObject {
         self.service = service
     }
     
-    func loadAll() {
-        Task {
-            isLoading = true
-            defer { isLoading = false }
-            do {
-                async let p = service.fetchPendingPermissions()
-                async let l = service.fetchPendingLeaves()
-                async let a = service.fetchAllAttendance()
-                (permissions, leaves, attendance) = try await (p, l, a)
-            } catch {
-                errorMessage = "Failed to load. Check Strapi URL/roles/token."
-            }
+    func loadAll() async {
+        
+        guard !isLoading else { return }
+        isLoading = true
+        defer { isLoading = false }
+        
+        do {
+            
+            let permissions = try await service.fetchPermissions()
+            self.permissions = permissions.sorted { $0.createdAt > $1.createdAt }
+            
+            let leaves = try await service.fetchLeaves()
+            self.leaves = leaves.sorted { $0.createdAt > $1.createdAt }
+            
+            let attendance = try await service.fetchAttendance()
+            self.attendance = attendance
+            
+            self.errorMessage = nil
+            
+        } catch {
+            self.errorMessage = error.localizedDescription
         }
     }
     
-    func approvePermission(_ row: PermissionRequestRow) {
-        Task {
-            do {
-                try await service.updatePermissionStatus(id: row.id, to: .approved)
-                if let i = permissions.firstIndex(where: { $0.id == row.id }) {
-                    let updated = permissions[i]
-                    var req = updated.request
-                    req.status = .approved
-                    permissions[i] = PermissionRequestRow(id: updated.id, request: req, employeeName: updated.employeeName)
-                }
-            } catch {
-                errorMessage = "Could not update permission."
-            }
+    func updatePermissionStatus(_ permission: Permission, status: Status) async {
+        
+        guard let idx = permissions.firstIndex(where: { $0.documentId == permission.documentId }) else { return }
+        let old = permissions[idx]
+        var optimistic = old
+        optimistic.permissionStatus = status
+        permissions[idx] = optimistic
+        
+        do {
+            let updated = try await service.updatePermissionStatus(documentId: permission.documentId, status: status)
+            permissions[idx] = updated
+            permissions.sort { $0.createdAt > $1.createdAt }
+            errorMessage = nil
+        } catch {
+            permissions[idx] = old
+            errorMessage = error.localizedDescription
         }
     }
     
-    func rejectPermission(_ row: PermissionRequestRow) {
-        updatePermission(row, to: .rejected)
-    }
-    
-    private func updatePermission(_ row: PermissionRequestRow, to status: Status) {
-        Task {
-            do {
-                try await service.updatePermissionStatus(id: row.id, to: status)
-                if let i = permissions.firstIndex(where: { $0.id == row.id }) {
-                    var updated = permissions[i]
-                    var req = updated.request
-                    req.status = status
-                    updated = PermissionRequestRow(id: updated.id, request: req, employeeName: updated.employeeName)
-                    permissions[i] = updated
-                    print("Updating permission to \(status.rawValue)")
-                    
-                }
-            } catch {
-                errorMessage = "Could not update permission."
-            }
-        }
-    }
-    
-    func approveLeave(_ row: LeaveRequestRow) {
-        updateLeave(row, to: .approved)
-    }
-    
-    func rejectLeave(_ row: LeaveRequestRow) {
-        updateLeave(row, to: .rejected)
-    }
-    
-    private func updateLeave(_ row: LeaveRequestRow, to status: Status) {
-        Task {
-            do {
-                try await service.updateLeaveStatus(id: row.id, to: status)
-                if let i = leaves.firstIndex(where: { $0.id == row.id }) {
-                    var updated = leaves[i]
-                    var req = updated.request
-                    req.status = status
-                    updated = LeaveRequestRow(id: updated.id, request: req, employeeName: updated.employeeName)
-                    leaves[i] = updated
-                }
-            } catch {
-                errorMessage = "Could not update leave."
-            }
+    func updateLeaveStatus(_ leave: Leave, status: Status) async {
+        
+        guard let idx = leaves.firstIndex(where: { $0.documentId == leave.documentId }) else { return }
+        let old = leaves[idx]
+        var optimistic = old
+        optimistic.leaveStatus = status
+        leaves[idx] = optimistic
+        
+        do {
+            let updated = try await service.updateLeaveStatus(documentId: leave.documentId, status: status)
+            leaves[idx] = updated
+            leaves.sort { $0.createdAt > $1.createdAt }
+            errorMessage = nil
+        } catch {
+            leaves[idx] = old
+            errorMessage = error.localizedDescription
         }
     }
 }

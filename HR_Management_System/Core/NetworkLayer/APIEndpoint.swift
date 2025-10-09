@@ -10,24 +10,24 @@ import Foundation
 enum APIEndpoint {
     
     case login
-    case myPermissionRequests(userId: Int, query: [URLQueryItem] = [])
-    case myLeaveRequests(userId: Int, query: [URLQueryItem] = [])
-    case myAttendance(userId: Int, query: [URLQueryItem] = [])
     case createPermission
     case createLeave
     case createAttendance
-    case pendingPermissions(query: [URLQueryItem] = [])
-    case updatePermissionStatus(id: Int)
-    case pendingLeaves(query: [URLQueryItem] = [])
-    case updateLeaveStatus(id: Int)
-    case allAttendance(query: [URLQueryItem] = [])
+    
+    case permissionRequests
+    case leaveRequests
+    case attendance
+    
+    case updatePermissionStatus(documentId: String)
+    case updateLeaveStatus(documentId: String)
+    
     static let base = URL(string: "http://localhost:1337")!
+    static let baseURL = URL(string: "http://localhost:1337/api")!
     
     var method: HTTPMethod {
         switch self {
         case .login: return .post
-        case .myPermissionRequests, .myLeaveRequests, .myAttendance,
-                .pendingPermissions, .pendingLeaves, .allAttendance: return .get
+        case .attendance, .permissionRequests, .leaveRequests: return .get
         case .createPermission, .createLeave, .createAttendance: return .post
         case .updatePermissionStatus, .updateLeaveStatus: return .put
         }
@@ -36,7 +36,11 @@ enum APIEndpoint {
     var requiresStrapiDataWrapper: Bool {
         switch self {
         case .login: return false
-        case .pendingPermissions, .pendingLeaves, .allAttendance: return false
+        case .permissionRequests: return false
+        case .leaveRequests: return false
+        case .attendance: return false
+        case .updatePermissionStatus: return false
+        case .updateLeaveStatus: return false
         default:     return true
         }
     }
@@ -47,38 +51,22 @@ enum APIEndpoint {
         case .login:
             return APIEndpoint.base.appendingPathComponent("api/auth/local").absoluteString
             
-        case let .myPermissionRequests(userId, query):
-            return APIEndpoint.url(
-                "api/permission-requests",
-                baseQuery: [
-                    StrapiFilter.employeeIdEq(userId),
-                    URLQueryItem(name: "sort", value: "date:desc"),
-                    URLQueryItem(name: "pagination[pageSize]", value: "100")
-                ],
-                extra: query
-            )
             
-        case let .myLeaveRequests(userId, query):
-            return APIEndpoint.url(
-                "api/leave-requests",
-                baseQuery: [
-                    StrapiFilter.employeeIdEq(userId),
-                    URLQueryItem(name: "sort", value: "dateFrom:desc"),
-                    URLQueryItem(name: "pagination[pageSize]", value: "100")
-                ],
-                extra: query
-            )
+        case .permissionRequests:
+            return APIEndpoint.url("permission-requests", baseQuery: [ URLQueryItem(name: "populate", value: "users_permissions_user") ])
             
-        case let .myAttendance(userId, query):
-            return APIEndpoint.url(
-                "api/attendances",
-                baseQuery: [
-                    StrapiFilter.employeeIdEq(userId),
-                    URLQueryItem(name: "sort", value: "timestamp:desc"),
-                    URLQueryItem(name: "pagination[pageSize]", value: "100")
-                ],
-                extra: query
-            )
+        case .leaveRequests:
+            return APIEndpoint.url("leave-requests", baseQuery: [ URLQueryItem(name: "populate", value: "users_permissions_user") ])
+            
+        case .attendance:
+            return APIEndpoint.url("attendances", baseQuery: [ URLQueryItem(name: "populate", value: "users_permissions_user") ])
+            
+            
+        case .updatePermissionStatus(let documentId):
+            return APIEndpoint.url("permission-requests/\(documentId)", baseQuery: [ URLQueryItem(name: "populate", value: "users_permissions_user") ])
+            
+        case .updateLeaveStatus(let documentId):
+            return APIEndpoint.url("leave-requests/\(documentId)", baseQuery: [ URLQueryItem(name: "populate", value: "users_permissions_user") ])
             
         case .createPermission:
             return APIEndpoint.base.appendingPathComponent("api/permission-requests").absoluteString
@@ -89,63 +77,12 @@ enum APIEndpoint {
         case .createAttendance:
             return APIEndpoint.base.appendingPathComponent("api/attendances").absoluteString
             
-        case let .pendingPermissions(query):
-            return APIEndpoint.url(
-                "api/permission-requests",
-                baseQuery: [
-                    URLQueryItem(name: "populate", value: "users_permissions_user"), // ✅ keep this
-                    URLQueryItem(name: "sort", value: "date:desc"),
-                    URLQueryItem(name: "pagination[pageSize]", value: "100")
-                ],
-                extra: query
-            )
-            
-        case let .pendingLeaves(query):
-            return APIEndpoint.url(
-                "api/leave-requests",
-                baseQuery: [
-                    // optional populate if you have the same relation on Leave
-                    URLQueryItem(name: "populate", value: "users_permissions_user"),
-                    URLQueryItem(name: "sort", value: "dateFrom:desc"),
-                    URLQueryItem(name: "pagination[pageSize]", value: "100")
-                ],
-                extra: query
-            )
-            
-        case let .updatePermissionStatus(id):
-            return APIEndpoint.base
-                .appendingPathComponent("api/permission-requests")
-                .appendingPathComponent("\(id)")
-                .absoluteString
-            
-        case let .updateLeaveStatus(id):
-            return APIEndpoint.base.appendingPathComponent("api/leave-requests/\(id)").absoluteString
-            
-        case let .allAttendance(query):
-            return APIEndpoint.url(
-                "api/attendances",
-                baseQuery: [
-                    URLQueryItem(name: "populate", value: "users_permissions_user"), // ⬅️ get the user name
-                    URLQueryItem(name: "sort", value: "timestamp:desc"),
-                    URLQueryItem(name: "pagination[pageSize]", value: "100")
-                ],
-                extra: query   // keep this empty to avoid duplicate sort in logs
-            )
-            
         }
     }
     
-    // Helper to build URLs with query items (expects path with NO leading “/”)
-    private static func url(_ path: String, baseQuery: [URLQueryItem], extra: [URLQueryItem]) -> String {
-        var comps = URLComponents(url: APIEndpoint.base.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
-        comps.queryItems = baseQuery + extra
+    private static func url(_ path: String, baseQuery: [URLQueryItem]) -> String {
+        var comps = URLComponents(url: APIEndpoint.baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
+        comps.queryItems = baseQuery
         return comps.string!
-    }
-}
-
-enum StrapiFilter {
-    // filters[employee][id][$eq]=<userId>
-    static func employeeIdEq(_ userId: Int) -> URLQueryItem {
-        URLQueryItem(name: "filters[employee][id][$eq]", value: "\(userId)")
     }
 }
